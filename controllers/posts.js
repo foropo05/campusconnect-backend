@@ -1,5 +1,4 @@
 let Post = require('../models/post');
-let ActivityLog = require('../models/activityLog');
 
 // Get all posts
 exports.postList = async (req, res) => {
@@ -46,7 +45,7 @@ exports.getByID = async (req, res) => {
     if (post.status !== 'active' && !req.user) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized'
+        message: 'Not authorized to view this post'
       });
     }
     
@@ -77,20 +76,11 @@ exports.processAdd = async (req, res) => {
     });
 
     let savedPost = await newPost.save();
-    
-    // Log activity
-    let activityLog = new ActivityLog({
-      user: req.user.id,
-      action: 'CREATE',
-      target: 'Post: ' + savedPost.title
-    });
-    await activityLog.save();
-
     await savedPost.populate('author', 'firstName lastName username');
 
     res.status(201).json({
       success: true,
-      message: 'Post created',
+      message: 'Post created successfully',
       post: savedPost
     });
   } catch (error) {
@@ -118,7 +108,7 @@ exports.processEdit = async (req, res) => {
     if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized'
+        message: 'Not authorized to edit this post'
       });
     }
 
@@ -131,20 +121,11 @@ exports.processEdit = async (req, res) => {
     post.eventDate = req.body.eventDate || post.eventDate;
 
     let updatedPost = await post.save();
-    
-    // Log activity
-    let activityLog = new ActivityLog({
-      user: req.user.id,
-      action: 'UPDATE',
-      target: 'Post: ' + updatedPost.title
-    });
-    await activityLog.save();
-
     await updatedPost.populate('author', 'firstName lastName username');
 
     res.json({
       success: true,
-      message: 'Post updated',
+      message: 'Post updated successfully',
       post: updatedPost
     });
   } catch (error) {
@@ -172,25 +153,17 @@ exports.performDelete = async (req, res) => {
     if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized'
+        message: 'Not authorized to delete this post'
       });
     }
 
     // Soft delete - change status
     post.status = 'cancelled';
     await post.save();
-    
-    // Log activity
-    let activityLog = new ActivityLog({
-      user: req.user.id,
-      action: 'DELETE',
-      target: 'Post: ' + post.title
-    });
-    await activityLog.save();
 
     res.json({
       success: true,
-      message: 'Post deleted'
+      message: 'Post deleted successfully'
     });
   } catch (error) {
     console.log(error);
