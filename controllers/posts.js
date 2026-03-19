@@ -1,24 +1,17 @@
+let Post = require('../models/post');
+let ActivityLog = require('../models/activityLog');
 
-
-const Post = require('../models/post');
-const ActivityLog = require('../models/activityLog');
-const { validationResult } = require('express-validator');
-
-/**
- * Get all posts (public access)
- * Shows only active posts for anonymous users
- * Shows all posts for authenticated users
- */
+// Get all posts
 exports.postList = async (req, res) => {
   try {
     let query = {};
     
-    // If user is not authenticated, only show active posts
-    if (!req.user || !req.user.id) {
+    // If not logged in, only show active posts
+    if (!req.user) {
       query.status = 'active';
     }
     
-    const posts = await Post.find(query)
+    let posts = await Post.find(query)
       .populate('author', 'firstName lastName username')
       .sort({ createdAt: -1 });
     
@@ -28,20 +21,18 @@ exports.postList = async (req, res) => {
       posts: posts
     });
   } catch (error) {
-    console.error('Error in postList:', error);
+    console.log(error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching posts'
+      message: 'Server error'
     });
   }
 };
 
-/**
- * Get single post by ID (public access)
- */
+// Get post by ID
 exports.getByID = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id)
+    let post = await Post.findById(req.params.id)
       .populate('author', 'firstName lastName username');
     
     if (!post) {
@@ -51,11 +42,11 @@ exports.getByID = async (req, res) => {
       });
     }
     
-    // If post is not active, only authenticated users can see it
-    if (post.status !== 'active' && (!req.user || !req.user.id)) {
+    // Check if post is active or user is logged in
+    if (post.status !== 'active' && !req.user) {
       return res.status(403).json({
         success: false,
-        message: 'You do not have permission to view this post'
+        message: 'Not authorized'
       });
     }
     
@@ -64,30 +55,18 @@ exports.getByID = async (req, res) => {
       post: post
     });
   } catch (error) {
-    console.error('Error in getByID:', error);
+    console.log(error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching post'
+      message: 'Server error'
     });
   }
 };
 
-/**
- * Add new post (authenticated users only)
- */
+// Add new post
 exports.processAdd = async (req, res) => {
-  // Check for validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      errors: errors.array()
-    });
-  }
-
   try {
-    // Create new post
-    const newPost = new Post({
+    let newPost = new Post({
       title: req.body.title,
       content: req.body.content,
       category: req.body.category,
@@ -97,48 +76,36 @@ exports.processAdd = async (req, res) => {
       author: req.user.id
     });
 
-    const savedPost = await newPost.save();
+    let savedPost = await newPost.save();
     
-    // Log the activity
-    const activityLog = new ActivityLog({
+    // Log activity
+    let activityLog = new ActivityLog({
       user: req.user.id,
       action: 'CREATE',
-      target: `Post: ${savedPost.title}`
+      target: 'Post: ' + savedPost.title
     });
     await activityLog.save();
 
-    // Populate author info before sending response
     await savedPost.populate('author', 'firstName lastName username');
 
     res.status(201).json({
       success: true,
-      message: 'Post created successfully',
+      message: 'Post created',
       post: savedPost
     });
   } catch (error) {
-    console.error('Error in processAdd:', error);
+    console.log(error);
     res.status(500).json({
       success: false,
-      message: 'Server error while creating post'
+      message: 'Server error'
     });
   }
 };
 
-/**
- * Edit post (only author or admin)
- */
+// Edit post
 exports.processEdit = async (req, res) => {
-  // Check for validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      errors: errors.array()
-    });
-  }
-
   try {
-    const post = await Post.findById(req.params.id);
+    let post = await Post.findById(req.params.id);
     
     if (!post) {
       return res.status(404).json({
@@ -147,11 +114,11 @@ exports.processEdit = async (req, res) => {
       });
     }
 
-    // Check if user is author or admin
+    // Check if user is author
     if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'You are not authorized to edit this post'
+        message: 'Not authorized'
       });
     }
 
@@ -163,13 +130,13 @@ exports.processEdit = async (req, res) => {
     post.location = req.body.location || post.location;
     post.eventDate = req.body.eventDate || post.eventDate;
 
-    const updatedPost = await post.save();
+    let updatedPost = await post.save();
     
-    // Log the activity
-    const activityLog = new ActivityLog({
+    // Log activity
+    let activityLog = new ActivityLog({
       user: req.user.id,
       action: 'UPDATE',
-      target: `Post: ${updatedPost.title}`
+      target: 'Post: ' + updatedPost.title
     });
     await activityLog.save();
 
@@ -177,25 +144,22 @@ exports.processEdit = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Post updated successfully',
+      message: 'Post updated',
       post: updatedPost
     });
   } catch (error) {
-    console.error('Error in processEdit:', error);
+    console.log(error);
     res.status(500).json({
       success: false,
-      message: 'Server error while updating post'
+      message: 'Server error'
     });
   }
 };
 
-/**
- * Delete post (soft delete - change status to cancelled/expired)
- * Only author or admin
- */
+// Delete post (soft delete)
 exports.performDelete = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    let post = await Post.findById(req.params.id);
     
     if (!post) {
       return res.status(404).json({
@@ -204,35 +168,35 @@ exports.performDelete = async (req, res) => {
       });
     }
 
-    // Check if user is author or admin
+    // Check if user is author
     if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'You are not authorized to delete this post'
+        message: 'Not authorized'
       });
     }
 
-    // Soft delete - change status to 'cancelled' or 'expired'
+    // Soft delete - change status
     post.status = 'cancelled';
     await post.save();
     
-    // Log the activity
-    const activityLog = new ActivityLog({
+    // Log activity
+    let activityLog = new ActivityLog({
       user: req.user.id,
       action: 'DELETE',
-      target: `Post: ${post.title}`
+      target: 'Post: ' + post.title
     });
     await activityLog.save();
 
     res.json({
       success: true,
-      message: 'Post deleted successfully (status changed to cancelled)'
+      message: 'Post deleted'
     });
   } catch (error) {
-    console.error('Error in performDelete:', error);
+    console.log(error);
     res.status(500).json({
       success: false,
-      message: 'Server error while deleting post'
+      message: 'Server error'
     });
   }
 };
