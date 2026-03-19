@@ -157,3 +157,34 @@ exports.logToken = (req, res, next) => {
   }
   next();
 };
+
+// Get user profile - ADD THIS NEW FUNCTION
+exports.getProfile = async (req, res) => {
+  try {
+    let user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        created: user.created
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
