@@ -9,6 +9,8 @@ let postsRouter = require('../routers/posts');
 let authRouter = require('../routers/auth');
 let commentsRouter = require('../routers/comments');
 let activityRouter = require('../routers/activity');
+let userRouter = require('../routers/users');
+
 
 app.use(logger('dev'));
 app.use(cors());
@@ -20,6 +22,7 @@ app.use('/api/posts', postsRouter);
 app.use('/auth', authRouter);
 app.use('/api/comments', commentsRouter);
 app.use('/api/activities', activityRouter);
+app.use('/api/users', userRouter);
 
 app.use(function (req, res, next) {
   next(createError(404));
