@@ -1,7 +1,4 @@
-// controllers/posts.js
-// Student ID: [Smriti's Student ID]
-// CampusConnect - Posts Controller
-// Description: Handles CRUD operations for posts
+
 
 const Post = require('../models/post');
 const ActivityLog = require('../models/activityLog');
