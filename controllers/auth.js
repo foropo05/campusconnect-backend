@@ -1,5 +1,4 @@
 let User = require('../models/User');
-let ActivityLog = require('../models/activityLog');
 let bcrypt = require('bcryptjs');
 let jwt = require('jsonwebtoken');
 
@@ -26,10 +25,10 @@ exports.register = async (req, res) => {
 
     // Create user
     let newUser = new User({
-      firstName,
-      lastName,
-      email,
-      username,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      username: username,
       password: hashedPassword,
       role: role || 'student'
     });
@@ -43,17 +42,9 @@ exports.register = async (req, res) => {
         username: savedUser.username,
         role: savedUser.role 
       },
-      process.env.JWT_SECRET || 'campusconnect_secret',
-      { expiresIn: '7d' }
+      'secretkey',
+      { expiresIn: '1h' }
     );
-
-    // Log activity
-    let activityLog = new ActivityLog({
-      user: savedUser._id,
-      action: 'REGISTER',
-      target: 'User registration'
-    });
-    await activityLog.save();
 
     res.status(201).json({
       success: true,
@@ -110,17 +101,9 @@ exports.signin = async (req, res) => {
         username: user.username,
         role: user.role 
       },
-      process.env.JWT_SECRET || 'campusconnect_secret',
-      { expiresIn: '7d' }
+      'secretkey',
+      { expiresIn: '1h' }
     );
-
-    // Log activity
-    let activityLog = new ActivityLog({
-      user: user._id,
-      action: 'LOGIN',
-      target: 'User login'
-    });
-    await activityLog.save();
 
     res.json({
       success: true,
@@ -151,12 +134,12 @@ exports.requireSignin = (req, res, next) => {
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required'
+      message: 'No token provided'
     });
   }
 
   try {
-    let decoded = jwt.verify(token, process.env.JWT_SECRET || 'campusconnect_secret');
+    let decoded = jwt.verify(token, 'secretkey');
     req.user = decoded;
     next();
   } catch (error) {
@@ -170,7 +153,7 @@ exports.requireSignin = (req, res, next) => {
 // Log token middleware
 exports.logToken = (req, res, next) => {
   if (req.user) {
-    console.log('User:', req.user.username);
+    console.log('User authenticated:', req.user.username);
   }
   next();
 };
