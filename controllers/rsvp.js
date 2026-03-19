@@ -44,7 +44,7 @@ exports.processRSVP = async (req, res) => {
     // Find existing RSVP or create new
     let rsvp = await RSVP.findOneAndUpdate(
       { 
-        user: req.user.id, 
+        user: req.auth.id, 
         event: req.params.postId 
       },
       { 
@@ -74,7 +74,7 @@ exports.processRSVP = async (req, res) => {
 exports.deleteRSVP = async (req, res) => {
   try {
     let rsvp = await RSVP.findOneAndDelete({
-      user: req.user.id,
+      user: req.auth.id,
       event: req.params.postId
     });
 

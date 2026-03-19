@@ -36,7 +36,7 @@ exports.addComment = async (req, res) => {
 
     let newComment = new Comment({
       text: req.body.text,
-      author: req.user.id,
+      author: req.auth.id,
       post: req.params.postId
     });
 
@@ -70,7 +70,7 @@ exports.updateComment = async (req, res) => {
     }
 
     // Check if user is author or admin
-    if (comment.author.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (comment.author.toString() !== req.auth.id && req.autht.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to edit this comment'
@@ -108,7 +108,7 @@ exports.deleteComment = async (req, res) => {
     }
 
     // Check if user is author or admin
-    if (comment.author.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (comment.author.toString() !== req.auth.id && req.auth.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this comment'
