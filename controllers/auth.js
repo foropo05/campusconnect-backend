@@ -1,7 +1,3 @@
-// controllers/auth.js
-// Student ID: [Smriti's Student ID]
-// CampusConnect - Authentication Controller
-// Description: Handles user registration, login, and JWT authentication
 
 const User = require('../models/User');
 const ActivityLog = require('../models/activityLog');
