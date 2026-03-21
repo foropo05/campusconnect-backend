@@ -1,5 +1,6 @@
 let RSVP = require('../models/rsvp');
 let Post = require('../models/post');
+let ActivityLog = require('../models/activityLog');
 
 // Get all RSVPs for a post
 exports.getRSVPs = async (req, res) => {
@@ -33,7 +34,6 @@ exports.processRSVP = async (req, res) => {
       });
     }
 
-    // Check if it's an event post
     if (post.category !== 'event') {
       return res.status(400).json({
         success: false,
@@ -41,7 +41,6 @@ exports.processRSVP = async (req, res) => {
       });
     }
 
-    // Find existing RSVP or create new
     let rsvp = await RSVP.findOneAndUpdate(
       { 
         user: req.auth.id, 
@@ -55,6 +54,12 @@ exports.processRSVP = async (req, res) => {
         new: true 
       }
     ).populate('user', 'firstName lastName username');
+
+    await ActivityLog.create({
+      user: req.auth.id,
+      action: 'Saved RSVP',
+      target: req.params.postId
+    });
 
     res.json({
       success: true,
@@ -84,6 +89,12 @@ exports.deleteRSVP = async (req, res) => {
         message: 'RSVP not found'
       });
     }
+
+    await ActivityLog.create({
+      user: req.auth.id,
+      action: 'Deleted RSVP',
+      target: req.params.postId
+    });
 
     res.json({
       success: true,

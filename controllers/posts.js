@@ -1,4 +1,5 @@
 let PostModel = require('../models/post');
+let ActivityLog = require('../models/activityLog');
 
 module.exports.postList = async (req, res, next) => {
     try {
@@ -53,6 +54,13 @@ module.exports.processAdd = async (req, res, next) => {
 
         let result = await PostModel.create(newPost);
 
+        // ✅ Activity log
+        await ActivityLog.create({
+            user: req.auth.id,
+            action: 'Created Post',
+            target: result._id.toString()
+        });
+
         res.json({
             success: true,
             message: 'Post added successfully.',
@@ -80,6 +88,14 @@ module.exports.processEdit = async (req, res, next) => {
         let result = await PostModel.updateOne({ _id: id }, updatePost);
 
         if (result.modifiedCount > 0 || result.matchedCount > 0) {
+
+            // ✅ Activity log
+            await ActivityLog.create({
+                user: req.auth.id,
+                action: 'Updated Post',
+                target: id
+            });
+
             res.json({
                 success: true,
                 message: 'Post updated successfully.'
@@ -100,6 +116,14 @@ module.exports.performDelete = async (req, res, next) => {
         let result = await PostModel.deleteOne({ _id: id });
 
         if (result.deletedCount > 0) {
+
+            // ✅ Activity log
+            await ActivityLog.create({
+                user: req.auth.id,
+                action: 'Deleted Post',
+                target: id
+            });
+
             res.json({
                 success: true,
                 message: 'Post deleted successfully.'

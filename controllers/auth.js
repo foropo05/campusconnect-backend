@@ -22,7 +22,7 @@ module.exports.register = async function (req, res, next) {
             username: req.body.username,
             email: req.body.email,
             password: hashedPassword,
-            role: 'admin' // Default role, can be changed as needed
+            role: 'student' // Default role, can be changed as needed
         });
 
         let result = await User.create(newUser);
