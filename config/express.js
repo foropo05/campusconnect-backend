@@ -10,7 +10,7 @@ let authRouter = require('../routers/auth');
 let commentsRouter = require('../routers/comments');
 let activityRouter = require('../routers/activity');
 let userRouter = require('../routers/users');
-
+let rsvpRouter = require('../routers/rsvp');
 
 app.use(logger('dev'));
 app.use(cors());
@@ -23,7 +23,7 @@ app.use('/auth', authRouter);
 app.use('/api/comments', commentsRouter);
 app.use('/api/activities', activityRouter);
 app.use('/api/users', userRouter);
-
+app.use('/api/rsvp', rsvpRouter);
 app.use(function (req, res, next) {
   next(createError(404));
 });
