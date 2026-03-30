@@ -1,5 +1,6 @@
 let Comment = require('../models/comments');
 let Post = require('../models/post');
+let ActivityLog = require('../models/activityLog');
 
 // Get all comments for a post
 exports.getComments = async (req, res) => {
@@ -43,6 +44,12 @@ exports.addComment = async (req, res) => {
     let savedComment = await newComment.save();
     await savedComment.populate('author', 'firstName lastName username');
 
+    await ActivityLog.create({
+      user: req.auth.id,
+      action: 'Added Comment',
+      target: savedComment._id.toString()
+    });
+
     res.status(201).json({
       success: true,
       message: 'Comment added successfully',
@@ -81,6 +88,12 @@ exports.updateComment = async (req, res) => {
     let updatedComment = await comment.save();
     await updatedComment.populate('author', 'firstName lastName username');
 
+    await ActivityLog.create({
+      user: req.auth.id,
+      action: 'Updated Comment',
+      target: updatedComment._id.toString()
+    });
+
     res.json({
       success: true,
       message: 'Comment updated successfully',
@@ -116,6 +129,12 @@ exports.deleteComment = async (req, res) => {
     }
 
     await comment.deleteOne();
+
+    await ActivityLog.create({
+      user: req.auth.id,
+      action: 'Deleted Comment',
+      target: req.params.commentId
+    });
 
     res.json({
       success: true,

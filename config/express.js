@@ -16,7 +16,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/', indexRouter);
 app.use('/api/posts', postsRouter);
 app.use('/auth', authRouter);
-
 app.use(function (req, res, next) {
   next(createError(404));
 });
