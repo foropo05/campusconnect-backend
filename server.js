@@ -7,6 +7,8 @@ dbConfig().catch(console.dir);
 
 let server = http.createServer(app);
 
-server.listen(3000);
+const PORT = process.env.PORT || 3000;
 
-console.log('==== The server is running.');
+server.listen(PORT, () => {
+    console.log(`==== The server is running on port ${PORT}.`);
+});

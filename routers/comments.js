@@ -1,8 +1,8 @@
 let express = require('express');
 let router = express.Router({ mergeParams: true });
 
-let commentsController = require('../controllers/comments');
-let authController = require('../controllers/auth');
+let commentsController = require('./controllers/comments');
+let authController = require('./controllers/auth');
 
 // Get all comments for a post
 router.get('/:postId', commentsController.getComments);
