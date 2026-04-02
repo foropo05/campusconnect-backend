@@ -16,8 +16,8 @@ app.use('/api/posts', postsRouter);
 app.use('/api/auth', authRouter);
 
 // add these later when ready
-// app.use('/api/posts/:postId/comments', commentsRouter);
-// app.use('/api/posts/:postId/rsvp', rsvpRouter);
+app.use('/api/posts/:postId/comments', commentsRouter);
+app.use('/api/posts/:postId/rsvp', rsvpRouter);
 
 app.get('/', (req, res) => {
   res.send('CampusConnect backend is running');

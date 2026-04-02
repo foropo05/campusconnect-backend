@@ -1,138 +1,175 @@
-let PostModel = require('../models/post');
-let ActivityLog = require('../models/activityLog');
+let Post = require('../models/post');
 
-module.exports.postList = async (req, res, next) => {
-    try {
-        let list = await PostModel.find({}).populate(
-            'author',
-            'firstName lastName username email'
-        );
-
-        res.json({
-            success: true,
-            message: 'Posts list retrieved successfully.',
-            data: list
-        });
-    } catch (error) {
-        console.log(error);
-        next(error);
+// Get all posts
+exports.postList = async (req, res) => {
+  try {
+    let query = {};
+    
+    // If not logged in, only show active posts
+    if (!req.user) {
+      query.status = 'active';
     }
+    
+    let posts = await Post.find(query)
+      .populate('author', 'firstName lastName username')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      count: posts.length,
+      posts: posts
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
 
-module.exports.getByID = async function (req, res, next) {
-    try {
-        let post = await PostModel.findOne({ _id: req.params.id }).populate(
-            'author',
-            'firstName lastName username email'
-        );
-
-        if (!post)
-            throw new Error('Post not found. Are you sure it exists?');
-
-        res.json({
-            success: true,
-            message: 'Post retrieved successfully.',
-            data: post
-        });
-    } catch (error) {
-        console.log(error);
-        next(error);
+// Get post by ID
+exports.getByID = async (req, res) => {
+  try {
+    let post = await Post.findById(req.params.id)
+      .populate('author', 'firstName lastName username');
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
     }
+    
+    // Check if post is active or user is logged in
+    if (post.status !== 'active' && !req.user) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view this post'
+      });
+    }
+    
+    res.json({
+      success: true,
+      post: post
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
 
-module.exports.processAdd = async (req, res, next) => {
-    try {
-        let newPost = new PostModel({
-            title: req.body.title,
-            content: req.body.content,
-            category: req.body.category,
-            status: req.body.status || 'active',
-            location: req.body.location,
-            eventDate: req.body.eventDate,
-            author: req.auth.id
-        });
+// Add new post
+exports.processAdd = async (req, res) => {
+  try {
+    let newPost = new Post({
+      title: req.body.title,
+      content: req.body.content,
+      category: req.body.category,
+      status: req.body.status || 'active',
+      location: req.body.location,
+      eventDate: req.body.eventDate,
+      author: req.user.id
+    });
 
-        let result = await PostModel.create(newPost);
+    let savedPost = await newPost.save();
+    await savedPost.populate('author', 'firstName lastName username');
 
-        // ✅ Activity log
-        await ActivityLog.create({
-            user: req.auth.id,
-            action: 'Created Post',
-            target: result._id.toString()
-        });
-
-        res.json({
-            success: true,
-            message: 'Post added successfully.',
-            data: result
-        });
-    } catch (error) {
-        console.log(error);
-        next(error);
-    }
+    res.status(201).json({
+      success: true,
+      message: 'Post created successfully',
+      post: savedPost
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
 
-module.exports.processEdit = async (req, res, next) => {
-    try {
-        let id = req.params.id;
-
-        let updatePost = {
-            title: req.body.title,
-            content: req.body.content,
-            category: req.body.category,
-            status: req.body.status,
-            location: req.body.location,
-            eventDate: req.body.eventDate
-        };
-
-        let result = await PostModel.updateOne({ _id: id }, updatePost);
-
-        if (result.modifiedCount > 0 || result.matchedCount > 0) {
-
-            // ✅ Activity log
-            await ActivityLog.create({
-                user: req.auth.id,
-                action: 'Updated Post',
-                target: id
-            });
-
-            res.json({
-                success: true,
-                message: 'Post updated successfully.'
-            });
-        } else {
-            throw new Error('Post not updated. Are you sure it exists?');
-        }
-    } catch (error) {
-        console.log(error);
-        next(error);
+// Edit post
+exports.processEdit = async (req, res) => {
+  try {
+    let post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
     }
+
+    // Check if user is author
+    if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to edit this post'
+      });
+    }
+
+    // Update fields
+    post.title = req.body.title || post.title;
+    post.content = req.body.content || post.content;
+    post.category = req.body.category || post.category;
+    post.status = req.body.status || post.status;
+    post.location = req.body.location || post.location;
+    post.eventDate = req.body.eventDate || post.eventDate;
+
+    let updatedPost = await post.save();
+    await updatedPost.populate('author', 'firstName lastName username');
+
+    res.json({
+      success: true,
+      message: 'Post updated successfully',
+      post: updatedPost
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
 
-module.exports.performDelete = async (req, res, next) => {
-    try {
-        let id = req.params.id;
-
-        let result = await PostModel.deleteOne({ _id: id });
-
-        if (result.deletedCount > 0) {
-
-            // ✅ Activity log
-            await ActivityLog.create({
-                user: req.auth.id,
-                action: 'Deleted Post',
-                target: id
-            });
-
-            res.json({
-                success: true,
-                message: 'Post deleted successfully.'
-            });
-        } else {
-            throw new Error('Post not deleted. Are you sure it exists?');
-        }
-    } catch (error) {
-        console.log(error);
-        next(error);
+// Delete post (soft delete)
+exports.performDelete = async (req, res) => {
+  try {
+    let post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
     }
+
+    // Check if user is author
+    if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this post'
+      });
+    }
+
+    // Soft delete - change status
+    post.status = 'cancelled';
+    await post.save();
+
+    res.json({
+      success: true,
+      message: 'Post deleted successfully'
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };

@@ -43,7 +43,7 @@ exports.processRSVP = async (req, res) => {
 
     let rsvp = await RSVP.findOneAndUpdate(
       { 
-        user: req.auth.id, 
+        user: req.user.id, 
         event: req.params.postId 
       },
       { 
@@ -79,7 +79,7 @@ exports.processRSVP = async (req, res) => {
 exports.deleteRSVP = async (req, res) => {
   try {
     let rsvp = await RSVP.findOneAndDelete({
-      user: req.auth.id,
+      user: req.user.id,
       event: req.params.postId
     });
 

@@ -3,7 +3,7 @@ let ActivityLog = require('../models/activityLog');
 // Get my own activities
 exports.getMyActivities = async (req, res) => {
   try {
-    let activities = await ActivityLog.find({ user: req.auth.id })
+    let activities = await ActivityLog.find({ user: req.user.id })
       .populate('user', 'firstName lastName username')
       .sort({ createdAt: -1 });
     
@@ -46,7 +46,7 @@ exports.getUserActivities = async (req, res) => {
 exports.getAllActivities = async (req, res) => {
   try {
     // Check if user is admin
-    if (req.auth.role !== 'admin') {
+    if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Admin access required'

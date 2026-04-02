@@ -1,85 +1,190 @@
 let User = require('../models/User');
-let jwt = require('jsonwebtoken');
-let { expressjwt } = require('express-jwt');
 let bcrypt = require('bcryptjs');
+let jwt = require('jsonwebtoken');
 
-let secretKey = process.env.SECRETKEY;
+// User registration
+exports.register = async (req, res) => {
+  try {
+    let { firstName, lastName, email, username, password, role } = req.body;
 
-module.exports.register = async function (req, res, next) {
-    try {
-        let existingUser = await User.findOne({
-            $or: [{ email: req.body.email }, { username: req.body.username }]
-        });
-
-        if (existingUser)
-            throw new Error('Email or username already in use.');
-
-        let hashedPassword = await bcrypt.hash(req.body.password, 10);
-
-        let newUser = new User({
-            firstName: req.body.firstName,
-            lastName: req.body.lastName,
-            username: req.body.username,
-            email: req.body.email,
-            password: hashedPassword,
-            role: 'student' // Default role, can be changed as needed
-        });
-
-        let result = await User.create(newUser);
-
-        res.json({
-            success: true,
-            message: 'User registered successfully.',
-            data: result
-        });
-    } catch (error) {
-        console.log(error);
-        next(error);
+    // Check if user exists
+    let existingUser = await User.findOne({ 
+      $or: [{ email }, { username }] 
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists'
+      });
     }
+
+    // Hash password
+    let salt = await bcrypt.genSalt(10);
+    let hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
+    let newUser = new User({
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      username: username,
+      password: hashedPassword,
+      role: role || 'student'
+    });
+
+    let savedUser = await newUser.save();
+
+    // Create token
+    let token = jwt.sign(
+      { 
+        id: savedUser._id, 
+        username: savedUser.username,
+        role: savedUser.role 
+      },
+      'secretkey',
+      { expiresIn: '1h' }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      token: token,
+      user: {
+        id: savedUser._id,
+        firstName: savedUser.firstName,
+        lastName: savedUser.lastName,
+        email: savedUser.email,
+        username: savedUser.username,
+        role: savedUser.role
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
 
-module.exports.signin = async function (req, res, next) {
-    try {
-        let user = await User.findOne({ email: req.body.email });
+// User login
+exports.signin = async (req, res) => {
+  try {
+    let { username, password } = req.body;
 
-        if (!user)
-            throw new Error('User not found.');
+    // Find user
+    let user = await User.findOne({
+      $or: [{ username: username }, { email: username }]
+    });
 
-        let isMatch = await bcrypt.compare(req.body.password, user.password);
-
-        if (!isMatch)
-            throw new Error("Email and/or password don't match.");
-
-        let payload = {
-            id: user._id,
-            username: user.username,
-            role: user.role
-        };
-
-        let token = jwt.sign(payload, secretKey, {
-            algorithm: 'HS512',
-            expiresIn: '1h'
-        });
-
-        res.json({
-            success: true,
-            message: 'User authenticated successfully.',
-            token: token
-        });
-    } catch (error) {
-        console.log(error);
-        next(error);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
     }
+
+    // Check password
+    let isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Create token
+    let token = jwt.sign(
+      { 
+        id: user._id, 
+        username: user.username,
+        role: user.role 
+      },
+      'secretkey',
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token: token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        username: user.username,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
 
-module.exports.requireSignin = expressjwt({
-    secret: secretKey,
-    algorithms: ['HS512'],
-    userProperty: 'auth'
-});
+// Middleware for protected routes
+exports.requireSignin = (req, res, next) => {
+  let token = req.headers.authorization?.split(' ')[1];
 
-module.exports.logToken = async function (req, res, next) {
-    console.log(req.headers);
-    console.log(req.auth);
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: 'No token provided'
+    });
+  }
+
+  try {
+    let decoded = jwt.verify(token, 'secretkey');
+    req.user = decoded;
     next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token'
+    });
+  }
+};
+
+// Log token middleware
+exports.logToken = (req, res, next) => {
+  if (req.user) {
+    console.log('User authenticated:', req.user.username);
+  }
+  next();
+};
+
+// Get user profile - ADD THIS NEW FUNCTION
+exports.getProfile = async (req, res) => {
+  try {
+    let user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        created: user.created
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
 };
